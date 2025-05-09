@@ -22,11 +22,20 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    if (!target_size) {
+        fprintf(stderr, "no target size");
+        return 1;
+    }
+
     stat(input_file, &st);
     long int current_size = st.st_size;
     printf("%ld\n", current_size);
 
-    while (current_size > target_size && current_comp_level >= 1) {
+    while (current_size > target_size) {
+        if (current_comp_level <= 1) {
+            printf("unable to compress down to desired size\n");
+            return 1;
+        }
         stbi_write_jpg("output.jpg", width, height, channels, input, current_comp_level);
         stat("output.jpg", &st);
         current_size = st.st_size;
@@ -34,7 +43,7 @@ int main(int argc, char *argv[]) {
             current_comp_level = (current_comp_level / 2);
         }
         else {
-            while (current_size < target_size && current_comp_level >= 1) {
+            while (current_size < target_size) {
                 current_comp_level++;
                 stbi_write_jpg("output.jpg", width, height, channels, input, current_comp_level);
                 stat("output.jpg", &st);
