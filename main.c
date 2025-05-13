@@ -8,13 +8,32 @@
 
 #include <sys/stat.h>
 
-int main(int argc, char *argv[]) {
-    int width, height, channels;
-    long int target_size = atoi(argv[2]);
-    char *input_file = argv[1];
-    int current_comp_level = 50;
+int width, height, channels;
+long int FileSize(const char* input);
+void WriteImage(int compr, unsigned char *input);
 
-    struct stat st;
+int main(int argc, char *argv[]) {
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <input_file> <target_size_in_bytes>\n", argv[0]);
+        return 1;
+    }
+
+    char *endptr;
+    long int target_size = strtol(argv[2], &endptr, 10);
+    int best_low = 0;
+    int best_high = 100;
+    int middle;
+    double tenprtarget = (target_size * 0.95);
+
+    if (*endptr != '\0' || target_size <= 0) {
+        fprintf(stderr, "Invalid target size. Please provide a positive number of bytes.\n");
+        return 1;
+    }
+
+    char *input_file = argv[1];
+    
+
+    char output_file[11] = "output.jpg";
 
     unsigned char *input = stbi_load(input_file, &width, &height, &channels, 0);
     if (!input) {
@@ -26,41 +45,40 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "no target size");
         return 1;
     }
-
-    stat(input_file, &st);
-    long int current_size = st.st_size;
+    printf("123\n");
+    long int current_size = FileSize(input_file);
     printf("%ld\n", current_size);
 
-    while (current_size > target_size) {
-        if (current_comp_level <= 1) {
-            printf("unable to compress down to desired size\n");
-            return 1;
-        }
-        stbi_write_jpg("output.jpg", width, height, channels, input, current_comp_level);
-        stat("output.jpg", &st);
-        current_size = st.st_size;
+    while (current_size >= tenprtarget) {
+        printf("trying to find size\n");
+        middle = (best_low + best_high) / 2;
+        WriteImage(middle, input);
+        current_size = FileSize(output_file);
+        if (current_size < target_size) {
+            best_low = middle;
+        };
         if (current_size > target_size) {
-            current_comp_level = (current_comp_level / 2);
-        }
-        else {
-            while (current_size < target_size) {
-                current_comp_level++;
-                stbi_write_jpg("output.jpg", width, height, channels, input, current_comp_level);
-                stat("output.jpg", &st);
-                current_size = st.st_size;
-                if (current_size > target_size) {
-                    current_comp_level--;
-                    stbi_write_jpg("output.jpg", width, height, channels, input, current_comp_level);
-                    goto ending;
-                }
-            }
-        }
+            best_high = middle;
+        };
     }
 
-    ending:
-        printf("%d\n", current_comp_level);
-        printf("image resized successfully\n");
+    stbi_image_free(input);
+    printf("done");
+    return 0;
+}
 
-        stbi_image_free(input);
-        return 0;
+long int FileSize(const char* input) {
+    struct stat st;
+    if (stat(input, &st) != 0) {
+        perror("Failed to get input file size");
+        return 1;
+    };
+    long int current_size = st.st_size;
+    return current_size;
+}
+
+void WriteImage(int compr, unsigned char *input) {
+    if (!stbi_write_jpg("output.jpg", width, height, channels, input, compr)) {
+        fprintf(stderr, "Error writing output with quality %d\n", compr);
+    };
 }
