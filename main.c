@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 
@@ -7,23 +8,40 @@
 #include <stdio.h>
 
 #include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
 
 int width, height, channels;
 long int FileSize(const char* input);
 void WriteImage(int compr, unsigned char *input);
 
 int main(int argc, char *argv[]) {
-    if (argc < 3) {
-        fprintf(stderr, "Usage: %s <input_file> <target_size_in_bytes>\n", argv[0]);
+    if (argc < 5) {
+        fprintf(stderr, "Usage: %s <input_file> <target_size_in_bytes> <max_attempts> <range in %%>\n", argv[0]);
         return 1;
+    }
+
+    struct stat st;
+    char output_file[11] = "output.jpg";
+    
+    if (stat(output_file, &st) == 0) {
+        if (unlink(output_file) == 0) {
+            printf("Deleted old file\n");
+        } else {
+            perror("Error deleting old image");
+            return 1;
+        }
     }
 
     char *endptr;
     long int target_size = strtol(argv[2], &endptr, 10);
+    float range = strtol(argv[4], &endptr, 10);
     int best_low = 0;
     int best_high = 100;
     int middle;
-    double tenprtarget = (target_size * 0.95);
+    double tenprtarget = (target_size * (1 - (range / 100)));
+    int attempts = 1;
+    int max_attempts = strtol(argv[3], &endptr, 10);
 
     if (*endptr != '\0' || target_size <= 0) {
         fprintf(stderr, "Invalid target size. Please provide a positive number of bytes.\n");
@@ -32,9 +50,6 @@ int main(int argc, char *argv[]) {
 
     char *input_file = argv[1];
     
-
-    char output_file[11] = "output.jpg";
-
     unsigned char *input = stbi_load(input_file, &width, &height, &channels, 0);
     if (!input) {
         fprintf(stderr, "failed to load image\n");
@@ -45,12 +60,10 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "no target size");
         return 1;
     }
-    printf("123\n");
     long int current_size = FileSize(input_file);
     printf("%ld\n", current_size);
 
-    while (current_size >= tenprtarget) {
-        printf("trying to find size\n");
+    while (current_size >= tenprtarget && attempts <= max_attempts && middle >= 1) {
         middle = (best_low + best_high) / 2;
         WriteImage(middle, input);
         current_size = FileSize(output_file);
@@ -60,15 +73,24 @@ int main(int argc, char *argv[]) {
         if (current_size > target_size) {
             best_high = middle;
         };
+        attempts++;
+        printf("%ld\n", current_size);
     }
 
     stbi_image_free(input);
-    printf("done");
+    if (attempts >= max_attempts) {
+        printf("unable to find exact match in %d attempts\n", max_attempts);
+    }
+    else if (middle < 1) {
+        printf("exact compression level falls below 1\n");
+    }
+    else {
+        printf("done in %d attempts with compression level %d/100\n", attempts, middle);
+    }
     return 0;
 }
 
 long int FileSize(const char* input) {
-    struct stat st;
     if (stat(input, &st) != 0) {
         perror("Failed to get input file size");
         return 1;
