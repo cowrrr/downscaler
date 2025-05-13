@@ -9,8 +9,8 @@
 
 #include <sys/stat.h>
 #include <unistd.h>
-#include <errno.h>
 
+struct stat st;
 int width, height, channels;
 long int FileSize(const char* input);
 void WriteImage(int compr, unsigned char *input);
@@ -21,9 +21,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    struct stat st;
     char output_file[11] = "output.jpg";
-    
+
     if (stat(output_file, &st) == 0) {
         if (unlink(output_file) == 0) {
             printf("Deleted old file\n");
@@ -38,7 +37,7 @@ int main(int argc, char *argv[]) {
     float range = strtol(argv[4], &endptr, 10);
     int best_low = 0;
     int best_high = 100;
-    int middle;
+    int middle = 100;
     double tenprtarget = (target_size * (1 - (range / 100)));
     int attempts = 1;
     int max_attempts = strtol(argv[3], &endptr, 10);
