@@ -4,4 +4,4 @@
 
 ## usage:
 
-`./main [input image] [file size in bytes] [max_attempts] [range in %]`
+`./main [input image] [file size in bytes] [max_attempts] [range in %] [replace]`
