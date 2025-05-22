@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <sys/types.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 
@@ -6,7 +7,7 @@
 #include "stb/stb_image_write.h"
 
 #include <stdio.h>
-
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -14,25 +15,16 @@ struct stat st;
 int width, height, channels;
 long int FileSize(const char* input);
 void WriteImage(int compr, unsigned char *input);
+char output_file[11] = "temp.jpg";
 
 int main(int argc, char *argv[]) {
-    if (argc < 5) {
-        fprintf(stderr, "Usage: %s <input_file> <target_size_in_bytes> <max_attempts> <range in %%>\n", argv[0]);
+    if (argc < 6) {
+        fprintf(stderr, "Usage: %s <input_file> <target_size_in_bytes> <max_attempts> <range in %%> <replace>\n", argv[0]);
         return 1;
     }
 
-    char output_file[11] = "output.jpg";
-
-    if (stat(output_file, &st) == 0) {
-        if (unlink(output_file) == 0) {
-            printf("Deleted old file\n");
-        } else {
-            perror("Error deleting old image");
-            return 1;
-        }
-    }
-
     char *endptr;
+    int replace = strtol(argv[5], &endptr, 10);
     long int target_size = strtol(argv[2], &endptr, 10);
     float range = strtol(argv[4], &endptr, 10);
     int best_low = 0;
@@ -77,6 +69,13 @@ int main(int argc, char *argv[]) {
     }
 
     stbi_image_free(input);
+    // move temp file to original file
+    if (replace == 1) {
+        rename(output_file, input_file);
+    }   else {
+        rename(output_file, "output.jpg");
+    }
+    
     if (attempts >= max_attempts) {
         printf("unable to find exact match in %d attempts\n", max_attempts);
     }
@@ -99,7 +98,7 @@ long int FileSize(const char* input) {
 }
 
 void WriteImage(int compr, unsigned char *input) {
-    if (!stbi_write_jpg("output.jpg", width, height, channels, input, compr)) {
+    if (!stbi_write_jpg(output_file, width, height, channels, input, compr)) {
         fprintf(stderr, "Error writing output with quality %d\n", compr);
     };
 }
