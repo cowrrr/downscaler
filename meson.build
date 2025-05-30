@@ -1,7 +1,7 @@
 project('downscaler', 'c', default_options: ['default_library=static'])
 
 if host_machine.system() == 'darwin'
-  install_data('info.plist',
+  install_data('platforms/macos/info.plist',
   install_dir : 'Contents')
 endif
 
