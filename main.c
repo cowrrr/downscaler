@@ -3,7 +3,6 @@
 #include <sys/types.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
-#include <math.h>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
 
@@ -19,7 +18,7 @@ void WriteImage(int compr, unsigned char *input);
 char output_file[11] = "temp.jpg";
 char *output_name = NULL;
 char *input_file = NULL;
-int verbose;
+int verbose = 0;
 int replace = 1;
 double target_size;
 char *endptr;
@@ -78,7 +77,9 @@ int main(int argc, char *argv[]) {
     }
 
 
-    printf("%f\n", target_size);
+    if (verbose == 1) {
+    	printf("%s%f\n", "target size is ", target_size);
+    }
     int best_low = 0;
     int best_high = 100;
     int middle = 100;
@@ -102,7 +103,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     long int current_size = FileSize(input_file);
-    printf("%ld\n", current_size);
 
     while (current_size >= tenprtarget && attempts <= max_attempts && middle >= 1) {
         middle = (best_low + best_high) / 2;
@@ -115,7 +115,9 @@ int main(int argc, char *argv[]) {
             best_high = middle;
         };
         attempts++;
-        printf("%ld\n", current_size);
+	if (verbose == 1) {
+	   printf("%s%ld\n", "current size is ", current_size);
+	}
     }
 
     stbi_image_free(input);
@@ -127,13 +129,19 @@ int main(int argc, char *argv[]) {
     }
     
     if (attempts >= max_attempts) {
-        printf("unable to find exact match in %d attempts\n", max_attempts);
+	if (verbose == 1) {
+           printf("unable to find exact match in %d attempts\n", max_attempts);
+	}
     }
     else if (middle < 1) {
-        printf("exact compression level falls below 1\n");
+	if (verbose == 1) {
+           printf("exact compression level falls below 1\n");
+	}
     }
     else {
-        printf("done in %d attempts with compression level %d/100\n", attempts, middle);
+	if (verbose == 1) {
+	   printf("done in %d attempts with compression level %d/100\n", attempts, middle);
+	}
     }
     return 0;
 }
