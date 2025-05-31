@@ -3,3 +3,5 @@
 downscaler
 .vscode
 build
+macos.txt
+.cache

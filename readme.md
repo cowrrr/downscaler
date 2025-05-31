@@ -1,7 +1,11 @@
 # compile:
 
-`gcc main.c -lm -o main`
+## MacOS:
+`meson --prefix=/tmp/downscaler.app --bindir=Contents/MacOS build`
+`cd build`
+`ninja`
+`ninja install`
 
 ## usage:
 
-`./main [input image] [file size in bytes] [max_attempts] [range in %] [replace]`
+
