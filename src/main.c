@@ -23,11 +23,8 @@
     #define PLATFORM_NAME "linux"
     #define DEFAULT_CONFIG_LOCATION "/usr/local/share/downscaler/config.ini"
 #elif defined(__APPLE__) && defined(__MACH__)
-    #define USER getenv("USER")
     #define PLATFORM_NAME "osx"
     #define DEFAULT_CONFIG_LOCATION "/usr/local/share/downscaler/config.ini"
-    #define CONFIG_LOCATION ("/home/%s/Library/Applications Support/config.ini" USER)    
-    #define CONFIG_DIR ("/home/%s/Library/Applications Support" USER)
 #else
     #define PLATFORM_NAME NULL
 #endif
@@ -288,8 +285,13 @@ configpaths set_config() {
     }
 
     configpaths new_config;
+    int chars_written;
 
-    int chars_written = snprintf(new_config.config_location, sizeof(new_config.config_location), "/home/%s/.config/downscaler/config.ini", user);
+    if (strcmp(PLATFORM_NAME, "linux")) {
+        chars_written = snprintf(new_config.config_location, sizeof(new_config.config_location), "/home/%s/.config/downscaler/config.ini", user);
+    } else if (strcmp(PLATFORM_NAME, "osx")) {
+        chars_written = snprintf(new_config.config_location, sizeof(new_config.config_location), "/home/%s/Library/Application Support/downscaler/config.ini", user);
+    }
 
     if (chars_written < 0 || (size_t)chars_written >= sizeof(new_config.config_location)) {
         fprintf(stderr, "Error: Path string too long or snprintf error.\n");
@@ -299,7 +301,11 @@ configpaths set_config() {
     }
 
 
-    chars_written = snprintf(new_config.config_dir, sizeof(new_config.config_dir), "/home/%s/.config/downscaler", user);
+    if (strcmp(PLATFORM_NAME, "linux")) {
+        chars_written = snprintf(new_config.config_dir, sizeof(new_config.config_dir), "/home/%s/.config/downscaler", user);
+    } else if (strcmp(PLATFORM_NAME, "osx")) {
+        chars_written = snprintf(new_config.config_dir, sizeof(new_config.config_dir), "/home/%s/Library/Application Support/downscaler", user);
+    }
 
     if (chars_written < 0 || (size_t)chars_written >= sizeof(new_config.config_dir)) {
         fprintf(stderr, "Error: Path string too long or snprintf error.\n");
@@ -307,6 +313,6 @@ configpaths set_config() {
             fprintf(stderr, "Path was truncated.\n");
         }
     }
-    
+
     return new_config;
 }
