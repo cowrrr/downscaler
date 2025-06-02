@@ -2,15 +2,69 @@
 #include <string.h>
 #include <sys/types.h>
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb/stb_image.h"
+#include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb/stb_image_write.h"
-
+#include "stb_image_write.h"
+#include "ini.h"
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <errno.h>
 
+#if defined(_WIN32)
+    #define PLATFORM_NAME "windows"
+    #define DEFAULT_CONFIG_LOCATION "C:\Program Files\Downscaler\share\downscaler\config.ini"
+    #define CONFIG_LOCATION ""
+#elif defined(_WIN64)
+    #define PLATFORM_NAME "windows"
+    #define DEFAULT_CONFIG_LOCATION "C:\Program Files\Downscaler\share\downscaler\config.ini"
+#elif defined(__linux__)
+    #define PLATFORM_NAME "linux"
+    #define DEFAULT_CONFIG_LOCATION "/usr/local/share/downscaler/config.ini"
+#elif defined(__APPLE__) && defined(__MACH__)
+    #define USER getenv("USER")
+    #define PLATFORM_NAME "osx"
+    #define DEFAULT_CONFIG_LOCATION "/usr/local/share/downscaler/config.ini"
+    #define CONFIG_LOCATION ("/home/%s/Library/Applications Support/config.ini" USER)    
+    #define CONFIG_DIR ("/home/%s/Library/Applications Support" USER)
+#else
+    #define PLATFORM_NAME NULL
+#endif
+
+typedef struct
+{
+    int verbose;
+    int target_size;
+    int max_attempts;
+    int range;
+} configuration;
+
+typedef struct
+{
+    char config_location[256];
+    char config_dir[256];
+} configpaths;
+
+static int handler(void* Defaults, const char* section, const char* name,
+                   const char* value)
+{
+    configuration* pconfig = (configuration*)Defaults;
+
+    #define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
+    if (MATCH("Defaults", "verbose")) {
+        pconfig->verbose = atoi(value);
+    } else if (MATCH("Defaults", "target_size")) {
+        pconfig->target_size = atoi(value);
+    } else if (MATCH("Defaults", "max_attempts")) {
+        pconfig->max_attempts = atoi(value);
+    } else if (MATCH("Defaults", "range")) {
+        pconfig->range = atoi(value);
+    } else {
+        return 0;  /* unknown section/name, error */
+    }
+    return 1;
+}
 struct stat st;
 int width, height, channels;
 long int FileSize(const char* input);
@@ -18,15 +72,34 @@ void WriteImage(int compr, unsigned char *input);
 char output_file[11] = "temp.jpg";
 char *output_name = NULL;
 char *input_file = NULL;
-int verbose = 0;
 int replace = 1;
-double target_size;
 char *endptr;
-int max_attempts = 10;
-float range = 10;
+
+int copy_config_file(const char* src, const char* dest, const char* config_dir);
+configpaths set_config();
 
 int main(int argc, char *argv[]) {
-    if (argc < 3) {
+    configpaths new_paths = set_config();
+    configuration config;
+
+    if (ini_parse(new_paths.config_location, handler, &config) < 0) {
+        printf("%s%s\n", "Can't load 'config.ini' from", new_paths.config_location);
+
+        if (copy_config_file(DEFAULT_CONFIG_LOCATION, new_paths.config_location, new_paths.config_dir) != 0) {
+            printf("failed to copy default config file\n");
+        }
+        if (ini_parse(new_paths.config_location, handler, &config) < 0) {
+            printf("exhausted all options for loading the config file\n");
+        }
+    }
+
+    int verbose = config.verbose;
+    double target_size = config.target_size;
+    int max_attempts = config.max_attempts;
+    float range = config.range;
+    target_size = target_size * 1024 * 1024;
+
+    if (argc < 2) {
         fprintf(stderr, "Usage: %s <input_file> <target_size_in_megabytes> <max_attempts: opt> <range in %%: opt> <replace: opt>\n", argv[0]);
         return 1;
     }
@@ -57,20 +130,20 @@ int main(int argc, char *argv[]) {
                 target_size = strtol(argv[i + 1], &endptr, 10);
                 target_size = target_size * 1024 * 1024;
             } else {
-               fprintf(stderr, "Error: -t or -target requires a size.\n");
-               return 1; 
+                target_size = config.target_size; 
+                target_size = target_size * 1024 * 1024;
             }
         } else if (strcmp(argv[i], "-ma") == 0) {
             if (i + 1 < argc) {
                 max_attempts = strtol(argv[i + 1], &endptr, 10);
             } else {
-                fprintf(stderr, "Error: -ma requires a value\n");
+                max_attempts = config.max_attempts;
             }
         } else if (strcmp(argv[i], "-r") == 0) {
             if (i + i < argc) {
                 range = strtol(argv[i + 1], &endptr, 10);
             } else {
-                fprintf(stderr, "Error: -r requires a value\n");
+                range = config.range;
             }
         }
 
@@ -78,7 +151,7 @@ int main(int argc, char *argv[]) {
 
 
     if (verbose == 1) {
-    	printf("%s%f\n", "target size is ", target_size);
+        printf("%s%f\n", "target size is ", target_size);
     }
     int best_low = 0;
     int best_high = 100;
@@ -86,12 +159,12 @@ int main(int argc, char *argv[]) {
     double tenprtarget = (target_size * (1 - (range / 100)));
     int attempts = 1;
 
-    if (*endptr != '\0' || target_size <= 0) {
+    if (target_size <= 0) {
         fprintf(stderr, "Invalid target size. Please provide a positive number of megabytes\n");
         return 1;
     }
 
-    
+
     unsigned char *input = stbi_load(input_file, &width, &height, &channels, 0);
     if (!input) {
         fprintf(stderr, "failed to load image\n");
@@ -115,9 +188,9 @@ int main(int argc, char *argv[]) {
             best_high = middle;
         };
         attempts++;
-	if (verbose == 1) {
-	   printf("%s%ld\n", "current size is ", current_size);
-	}
+        if (verbose == 1) {
+            printf("%s%ld\n", "current size is ", current_size);
+        }
     }
 
     stbi_image_free(input);
@@ -127,21 +200,21 @@ int main(int argc, char *argv[]) {
     }   else {
         rename(output_file, "output.jpg");
     }
-    
+
     if (attempts >= max_attempts) {
-	if (verbose == 1) {
-           printf("unable to find exact match in %d attempts\n", max_attempts);
-	}
+        if (verbose == 1) {
+            printf("unable to find exact match in %d attempts\n", max_attempts);
+        }
     }
     else if (middle < 1) {
-	if (verbose == 1) {
-           printf("exact compression level falls below 1\n");
-	}
+        if (verbose == 1) {
+            printf("exact compression level falls below 1\n");
+        }
     }
     else {
-	if (verbose == 1) {
-	   printf("done in %d attempts with compression level %d/100\n", attempts, middle);
-	}
+        if (verbose == 1) {
+            printf("done in %d attempts with compression level %d/100\n", attempts, middle);
+        }
     }
     return 0;
 }
@@ -159,4 +232,81 @@ void WriteImage(int compr, unsigned char *input) {
     if (!stbi_write_jpg(output_file, width, height, channels, input, compr)) {
         fprintf(stderr, "Error writing output with quality %d\n", compr);
     };
+}
+
+int copy_config_file(const char* src, const char* dest, const char* config_dir) {
+    int src_fd = open(src, O_RDONLY);
+    if (src_fd == -1) {
+        perror("Failed to open source config file");
+        return -1;
+    }
+
+    if (mkdir(config_dir, 0755) == 0) {
+        printf("Directory '%s' created successfully.\n", "downscaler");
+    } else {
+        if (errno == EEXIST) {
+            printf("Error: Directory '%s' already exists.\n", "downscaler");
+        } else {
+            perror("Error creating directory"); // Prints a descriptive error message based on errno
+        }
+        return 1;
+    }
+    int dest_fd = open(dest, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (dest_fd == -1) {
+        perror("Failed to create destination config file");
+        close(src_fd);
+        return -1;
+    }
+
+    char buffer[8192];
+    ssize_t bytes_read, bytes_written;
+
+    while ((bytes_read = read(src_fd, buffer, sizeof(buffer))) > 0) {
+        bytes_written = write(dest_fd, buffer, bytes_read);
+        if (bytes_written != bytes_read) {
+            perror("Failed to write to destination file");
+            close(src_fd);
+            close(dest_fd);
+            return -1;
+        }
+    }
+
+    if (bytes_read == -1) {
+        perror("Failed to read from source file");
+    }
+
+    close(src_fd);
+    close(dest_fd);
+    return (bytes_read == -1) ? -1 : 0;
+}
+
+configpaths set_config() {
+    const char *user = getenv("USER");
+
+    if (user == NULL) {
+        fprintf(stderr, "USER environment variable not found.\n");
+    }
+
+    configpaths new_config;
+
+    int chars_written = snprintf(new_config.config_location, sizeof(new_config.config_location), "/home/%s/.config/downscaler/config.ini", user);
+
+    if (chars_written < 0 || (size_t)chars_written >= sizeof(new_config.config_location)) {
+        fprintf(stderr, "Error: Path string too long or snprintf error.\n");
+        if (chars_written >= (int)sizeof(new_config.config_location)) {
+            fprintf(stderr, "Path was truncated.\n");
+        }
+    }
+
+
+    chars_written = snprintf(new_config.config_dir, sizeof(new_config.config_dir), "/home/%s/.config/downscaler", user);
+
+    if (chars_written < 0 || (size_t)chars_written >= sizeof(new_config.config_dir)) {
+        fprintf(stderr, "Error: Path string too long or snprintf error.\n");
+        if (chars_written >= (int)sizeof(new_config.config_dir)) {
+            fprintf(stderr, "Path was truncated.\n");
+        }
+    }
+    
+    return new_config;
 }
