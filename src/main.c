@@ -286,10 +286,10 @@ configpaths set_config() {
     configpaths new_config;
     int chars_written;
 
-    if (strcmp(PLATFORM_NAME, "linux")) {
+    if (strcmp(PLATFORM_NAME, "linux") == 0) {
         chars_written = snprintf(new_config.config_location, sizeof(new_config.config_location), "/home/%s/.config/downscaler/config.ini", user);
-    } else if (strcmp(PLATFORM_NAME, "osx")) {
-        chars_written = snprintf(new_config.config_location, sizeof(new_config.config_location), "/home/%s/Library/Application Support/downscaler/config.ini", user);
+    } else if (strcmp(PLATFORM_NAME, "osx") == 0) {
+        chars_written = snprintf(new_config.config_location, sizeof(new_config.config_location), "/Users/%s/Library/Application Support/downscaler/config.ini", user);
     }
 
     if (chars_written < 0 || (size_t)chars_written >= sizeof(new_config.config_location)) {
