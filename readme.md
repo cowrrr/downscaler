@@ -1,9 +1,11 @@
 # compile:
 
-`meson setup build
+```
+meson setup build
 cd build
 ninja
-ninja install`
+ninja install
+```
 
 ## usage:
 
