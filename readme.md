@@ -11,11 +11,11 @@ ninja install
 
 `downscaler -i <image>`
 
--i || -input # input image  
--v || -verbose # verbose  
--t || -target # target size in MB  
--ma # max attempts to find closest size  
--r # how many % below target is acceptable  
+`-i` || `-input`   # input image  
+`-v` || `-verbose` # verbose  
+`-t` || `-target`  # target size in MB  
+`-ma`              # max attempts to find closest size  
+`-r`               # how many % below target is acceptable  
 
 ## configuration
 
