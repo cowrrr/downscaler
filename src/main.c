@@ -300,10 +300,10 @@ configpaths set_config() {
     }
 
 
-    if (strcmp(PLATFORM_NAME, "linux")) {
+    if (strcmp(PLATFORM_NAME, "linux") == 0) {
         chars_written = snprintf(new_config.config_dir, sizeof(new_config.config_dir), "/home/%s/.config/downscaler", user);
-    } else if (strcmp(PLATFORM_NAME, "osx")) {
-        chars_written = snprintf(new_config.config_dir, sizeof(new_config.config_dir), "/home/%s/Library/Application Support/downscaler", user);
+    } else if (strcmp(PLATFORM_NAME, "osx") == 0) {
+        chars_written = snprintf(new_config.config_dir, sizeof(new_config.config_dir), "/Users/%s/Library/Application Support/downscaler", user);
     }
 
     if (chars_written < 0 || (size_t)chars_written >= sizeof(new_config.config_dir)) {
