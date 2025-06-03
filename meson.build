@@ -10,8 +10,3 @@ executable('downscaler',
 dependencies: [meson.get_compiler('c').find_library('m')], 
 include_directories: inc,
 install: true)
-
-if host_machine.system() == 'darwin'
-  install_data('platforms/macos/info.plist',
-  install_dir : 'Contents')
-endif

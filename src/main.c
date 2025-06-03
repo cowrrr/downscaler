@@ -15,7 +15,6 @@
 #if defined(_WIN32)
     #define PLATFORM_NAME "windows"
     #define DEFAULT_CONFIG_LOCATION "C:\Program Files\Downscaler\share\downscaler\config.ini"
-    #define CONFIG_LOCATION ""
 #elif defined(_WIN64)
     #define PLATFORM_NAME "windows"
     #define DEFAULT_CONFIG_LOCATION "C:\Program Files\Downscaler\share\downscaler\config.ini"
