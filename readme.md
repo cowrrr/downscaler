@@ -1,11 +1,10 @@
 # compile:
 
-## MacOS:
-`meson --prefix=/tmp/downscaler.app --bindir=Contents/MacOS build`
+`meson setup build`
 `cd build`
 `ninja`
 `ninja install`
 
 ## usage:
 
-
+`downscaler -i <image>`
