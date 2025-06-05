@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
                 replace = 0;
                 i++;
             } else {
-                fprintf(stderr, "Error: -o or --output requires a filename.\n");
+                fprintf(stderr, "Error: -o or -output requires a filename.\n");
                 return 1;
             }
         } else if (strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "-target") == 0) {
@@ -126,20 +126,22 @@ int main(int argc, char *argv[]) {
                 target_size = strtol(argv[i + 1], &endptr, 10);
                 target_size = target_size * 1024 * 1024;
             } else {
-                target_size = config.target_size; 
-                target_size = target_size * 1024 * 1024;
+                fprintf(stderr, "Error: -t or -target requires a value\n");
+                return 1;
             }
         } else if (strcmp(argv[i], "-ma") == 0) {
             if (i + 1 < argc) {
                 max_attempts = strtol(argv[i + 1], &endptr, 10);
             } else {
-                max_attempts = config.max_attempts;
+                fprintf(stderr, "Error: -ma requires a value\n");
+                return 1;
             }
         } else if (strcmp(argv[i], "-r") == 0) {
-            if (i + i < argc) {
+            if (i + 1 < argc) {
                 range = strtol(argv[i + 1], &endptr, 10);
             } else {
-                range = config.range;
+                fprintf(stderr, "Error: -r requires a value\n");
+                return 1;
             }
         }
 
@@ -148,6 +150,8 @@ int main(int argc, char *argv[]) {
 
     if (verbose == 1) {
         printf("%s%f\n", "target size is ", target_size);
+        printf("%s%d\n", "max attempts is ", max_attempts);
+        printf("%s%f\n", "range is ", range);
     }
     int best_low = 0;
     int best_high = 100;
@@ -168,21 +172,21 @@ int main(int argc, char *argv[]) {
     }
 
     if (!target_size) {
-        fprintf(stderr, "no target size");
+        fprintf(stderr, "no target size\n");
         return 1;
     }
     long int current_size = FileSize(input_file);
 
-    while (current_size >= tenprtarget && attempts <= max_attempts && middle >= 1) {
+    while ((current_size < tenprtarget || current_size > target_size) && attempts <= max_attempts && middle >= 1) {
         middle = (best_low + best_high) / 2;
         WriteImage(middle, input);
         current_size = FileSize(output_file);
         if (current_size < target_size) {
             best_low = middle;
-        };
-        if (current_size > target_size) {
+        } else if (current_size > target_size) {
             best_high = middle;
         };
+
         attempts++;
         if (verbose == 1) {
             printf("%s%ld\n", "current size is ", current_size);
