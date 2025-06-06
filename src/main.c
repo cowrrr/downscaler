@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -42,6 +43,13 @@ typedef struct
     char config_dir[256];
 } configpaths;
 
+typedef struct
+{
+    unsigned char* data;
+    size_t size;
+    size_t capacity;
+} jpegbuffer;
+
 static int handler(void* Defaults, const char* section, const char* name,
                    const char* value)
 {
@@ -64,7 +72,7 @@ static int handler(void* Defaults, const char* section, const char* name,
 struct stat st;
 int width, height, channels;
 long int FileSize(const char* input);
-void WriteImage(int compr, unsigned char *input);
+jpegbuffer WriteImage(int compr, unsigned char *input);
 char output_file[11] = "temp.jpg";
 char *output_name = NULL;
 char *input_file = NULL;
@@ -177,10 +185,11 @@ int main(int argc, char *argv[]) {
     }
     long int current_size = FileSize(input_file);
 
+    jpegbuffer imgbuffer;
     while ((current_size < tenprtarget || current_size > target_size) && attempts <= max_attempts && middle >= 1) {
         middle = (best_low + best_high) / 2;
-        WriteImage(middle, input);
-        current_size = FileSize(output_file);
+        imgbuffer = WriteImage(middle, input);
+        current_size = imgbuffer.size;
         if (current_size < target_size) {
             best_low = middle;
         } else if (current_size > target_size) {
@@ -194,11 +203,25 @@ int main(int argc, char *argv[]) {
     }
 
     stbi_image_free(input);
-    // move temp file to original file
     if (replace == 1) {
-        rename(output_file, input_file);
-    }   else {
-        rename(output_file, "output.jpg");
+        FILE* fp = fopen(input_file, "wb");
+        if (fp) {
+            fwrite(imgbuffer.data, 1, imgbuffer.size, fp);
+            fclose(fp);
+            printf("Saved\n");
+        } else {
+            fprintf(stderr, "Could not save file\n");
+        }
+
+    } else {
+        FILE* fp = fopen("output.jpg", "wb");
+        if (fp) {
+            fwrite(imgbuffer.data, 1, imgbuffer.size, fp);
+            fclose(fp);
+            printf("Saved\n");
+        } else {
+            fprintf(stderr, "Could not save file\n");
+        }
     }
 
     if (attempts >= max_attempts) {
@@ -216,6 +239,7 @@ int main(int argc, char *argv[]) {
             printf("done in %d attempts with compression level %d/100\n", attempts, middle);
         }
     }
+    free(imgbuffer.data);
     return 0;
 }
 
@@ -228,10 +252,44 @@ long int FileSize(const char* input) {
     return current_size;
 }
 
-void WriteImage(int compr, unsigned char *input) {
-    if (!stbi_write_jpg(output_file, width, height, channels, input, compr)) {
-        fprintf(stderr, "Error writing output with quality %d\n", compr);
-    };
+void WriteCallback(void* context, void* data, int size) {
+    jpegbuffer* buffer = (jpegbuffer*)context;
+
+    if (buffer->size + size > buffer->capacity) {
+        size_t new_capacity = buffer->capacity == 0 ? 1024 : buffer->capacity * 2;
+        while (new_capacity < buffer->size + size) {
+            new_capacity *= 2;
+        }
+
+        unsigned char* new_data = (unsigned char*)realloc(buffer->data, new_capacity);
+        if (new_data == NULL) {
+            fprintf(stderr, "Failed to reallocate jpeg buffer\n");
+            return;
+        }
+        buffer->data = new_data;
+        buffer->capacity = new_capacity;
+    }
+
+    memcpy(buffer->data + buffer->size, data, size);
+
+    buffer->size += size;
+}
+
+jpegbuffer WriteImage(int compr, unsigned char *input) {
+    jpegbuffer jpeg_output;
+    jpeg_output.data = NULL;
+    jpeg_output.size = 0;
+    jpeg_output.capacity = 0;
+
+    int success = stbi_write_jpg_to_func(WriteCallback, &jpeg_output, width, height, channels, input, compr);
+
+    if (success) {
+        printf("Wrote image successfully with size %zu\n", jpeg_output.size);
+    } else {
+        fprintf(stderr, "Failed to write image\n");
+    }
+
+    return jpeg_output;
 }
 
 int copy_config_file(const char* src, const char* dest, const char* config_dir) {
