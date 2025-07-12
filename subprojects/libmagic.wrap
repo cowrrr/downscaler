@@ -1,0 +1,9 @@
+[wrap-git]
+directory = libmagic
+url = https://github.com/file/file/blob/master/src/magic.c
+revision = master
+method = cmake
+depth = 1
+
+[provide]
+libmagic = libmagic_dep

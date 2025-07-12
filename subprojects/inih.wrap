@@ -1,0 +1,11 @@
+[wrap-file]
+directory = inih-r59
+source_url = https://github.com/benhoyt/inih/archive/r59.tar.gz
+source_filename = inih-r59.tar.gz
+source_hash = 062279922805f5e9a369551a08d5ddb506140fe50774183ffdbb7c22bb97e3f4
+source_fallback_url = https://github.com/mesonbuild/wrapdb/releases/download/inih_r59-1/inih-r59.tar.gz
+wrapdb_version = r59-1
+
+[provide]
+inih = inih_dep
+inireader = INIReader_dep

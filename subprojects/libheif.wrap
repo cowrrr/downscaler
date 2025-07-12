@@ -1,0 +1,9 @@
+[wrap-git]
+directory = libheif
+url = https://github.com/strukturag/libheif.git
+revision = master
+method = cmake
+depth = 1
+
+[provide]
+libheif = libheif_dep

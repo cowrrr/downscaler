@@ -3,15 +3,17 @@
 #include <string.h>
 #include <sys/types.h>
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "../include/stb_image.h" 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
-#include "ini.h"
+#include "../include/stb_image_write.h"
+#include <ini.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include <libheif/heif.h>
+#include <magic.h>
 
 #if defined(_WIN32)
     #define PLATFORM_NAME "windows"
@@ -72,6 +74,7 @@ static int handler(void* Defaults, const char* section, const char* name,
 struct stat st;
 int width, height, channels;
 long int FileSize(const char* input);
+long int FileType(const char* input);
 jpegbuffer WriteImage(int compr, unsigned char *input);
 char output_file[11] = "temp.jpg";
 char *output_name = NULL;
@@ -173,6 +176,9 @@ int main(int argc, char *argv[]) {
     }
 
 
+    long int fileType = FileType(input_file);
+    printf("%ld\n", fileType);
+
     unsigned char *input = stbi_load(input_file, &width, &height, &channels, 0);
     if (!input) {
         fprintf(stderr, "failed to load image\n");
@@ -250,6 +256,15 @@ long int FileSize(const char* input) {
     };
     long int current_size = st.st_size;
     return current_size;
+}
+
+long int FileType(const char* input) {
+    if (stat(input, &st) != 0) {
+        perror("Failed to get input file type");
+        return 1;
+    };
+    long int fileType = st.st_mode;
+    return fileType;
 }
 
 void WriteCallback(void* context, void* data, int size) {
